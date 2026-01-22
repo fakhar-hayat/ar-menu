@@ -1,1 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Urban Bistro - AR Menu</title>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            overflow: hidden;
+        }
 
+        /* Loading Screen */
+        #loading {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .logo {
+            font-size: 60px;
+            margin-bottom: 20px;
+            animation: bounce 1s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .loading-text {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .loading-subtitle {
+            font-size: 16px;
+            opacity: 0.9;
+            margin-bottom: 30px;
+        }
+
+        .loader {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .instructions {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 25px;
+            font-size: 14px;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            text-align: center;
+            max-width: 90%;
+        }
+
+        /* Menu UI */
+        .menu-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(180deg, rgba(0,0,0,0.9) 0%, transparent 100%);
+            padding: 15px 20px;
+            z-index: 50;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+
+        .restaurant-title {
+            font-size: 20px;
+            font-weight: 700;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        }
+
+        .cart-button {
+            background: linear-gradient(45deg, #f093fb 0%, #f5576c 100%);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            color: white;
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+        }
+
+        .cart-count {
+            background: #ff4444;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            margin-left: 5px;
+        }
+
+        /* Bottom Menu Panel */
+        .bottom-menu {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 25px 25px 0 0;
+            box-shadow: 0 -5px 30px rgba(0,0,0,0.3);
+            max-height: 40vh;
+            overflow-y: auto;
+            z-index: 50;
+            padding: 20px;
+        }
+
+        .menu-title {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .menu-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .menu-item {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px;
+            border-radius: 15px;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.2s;
+            text-align: center;
+        }
+
+        .menu-item:active {
+            transform: scale(0.95);
+        }
+
+        .item-emoji {
+            font-size: 40px;
+            margin-bottom: 8px;
+        }
+
+        .item-name {
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .item-price {
+            font-size: 18px;
+            font-weight: 800;
+        }
+
+        /* Order Modal */
+        .modal {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            padding: 20px;
+        }
+
+        .modal.active { display: flex; }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .modal-emoji {
+            font-size: 60px;
+            margin-bottom: 15px;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .order-list {
+            text-align: left;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .order-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .order-total {
+            font-size: 20px;
+            font-weight: 700;
+            color: #667eea;
+            margin-top: 15px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .btn-whatsapp {
+            background: #25D366;
+            color: white;
+        }
+
+        .btn-continue {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-close {
+            background: #ddd;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading">
+        <div class="logo">🍽️</div>
+        <div class="loading-text">Urban Bistro</div>
+        <div class="loading-subtitle">Initializing AR Camera...</div>
+        <div class="loader"></div>
+    </div>
+
+    <!-- Menu Bar -->
+    <div class="menu-bar">
+        <div class="restaurant-title">🍽️ Urban Bistro AR</div>
+        <button class="cart-button" onclick="showCart()">
+            🛒 Cart <span class="cart-count" id="cartCount">0</span>
+        </button>
+    </div>
+
+    <!-- Instructions -->
+    <div class="instructions">
+        📱 Point camera at a flat surface<br>
+        👆 Tap items to add to cart
+    </div>
+
+    <!-- Bottom Menu -->
+    <div class="bottom-menu">
+        <div class="menu-title">Today's Menu</div>
+        <div class="menu-items" id="menuItems"></div>
+    </div>
+
+    <!-- Order Modal -->
+    <div class="modal" id="orderModal">
+        <div class="modal-content">
+            <div class="modal-emoji">✅</div>
+            <div class="modal-title">Your Order</div>
+            <div class="order-list" id="orderList"></div>
+            <div class="order-total" id="orderTotal"></div>
+            <div class="modal-buttons">
+                <button class="btn btn-whatsapp" onclick="sendOrder()">📱 WhatsApp</button>
+                <button class="btn btn-continue" onclick="closeModal()">Continue</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AR Scene -->
+    <a-scene
+        embedded
+        arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+        vr-mode-ui="enabled: false"
+        renderer="logarithmicDepthBuffer: true; precision: medium;"
+        loading-screen="enabled: false">
+
+        <!-- Camera -->
+        <a-entity camera look-controls="enabled: false"></a-entity>
+
+        <!-- Menu Items in 3D Space -->
+        <a-entity id="menuContainer" position="0 0 -3">
+            <!-- Burger -->
+            <a-entity position="-1.5 0.5 0" class="ar-item" data-id="0">
+                <a-box color="#8B4513" width="0.3" height="0.15" depth="0.3" position="0 0 0"></a-box>
+                <a-box color="#FFD700" width="0.28" height="0.05" depth="0.28" position="0 0.08 0"></a-box>
+                <a-box color="#228B22" width="0.28" height="0.03" depth="0.28" position="0 0.11 0"></a-box>
+                <a-box color="#FF6347" width="0.28" height="0.03" depth="0.28" position="0 0.13 0"></a-box>
+                <a-box color="#8B4513" width="0.3" height="0.08" depth="0.3" position="0 0.18 0"></a-box>
+                <a-text value="🍔 Burger\n$12.99" align="center" color="white" width="2" position="0 0.4 0"></a-text>
+                <a-animation attribute="rotation" to="0 360 0" dur="8000" repeat="indefinite" easing="linear"></a-animation>
+            </a-entity>
+
+            <!-- Pizza -->
+            <a-entity position="0 0.5 0" class="ar-item" data-id="1">
+                <a-cylinder color="#D2691E" radius="0.25" height="0.05" position="0 0 0"></a-cylinder>
+                <a-cylinder color="#FF6347" radius="0.23" height="0.03" position="0 0.04 0"></a-cylinder>
+                <a-cone color="#FFD700" radius-bottom="0.05" radius-top="0.02" height="0.08" position="0.1 0.06 0.1"></a-cone>
+                <a-cone color="#FFD700" radius-bottom="0.05" radius-top="0.02" height="0.08" position="-0.1 0.06 -0.1"></a-cone>
+                <a-text value="🍕 Pizza\n$15.99" align="center" color="white" width="2" position="0 0.4 0"></a-text>
+                <a-animation attribute="rotation" to="0 360 0" dur="10000" repeat="indefinite" easing="linear"></a-animation>
+            </a-entity>
+
+            <!-- Pasta -->
+            <a-entity position="1.5 0.5 0" class="ar-item" data-id="2">
+                <a-cylinder color="#FFA500" radius="0.2" height="0.08" position="0 0 0"></a-cylinder>
+                <a-torus color="#FFD700" radius="0.15" radius-tubular="0.02" position="0 0.05 0"></a-torus>
+                <a-torus color="#FFD700" radius="0.12" radius-tubular="0.02" position="0 0.07 0" rotation="20 45 0"></a-torus>
+                <a-text value="🍝 Pasta\n$14.50" align="center" color="white" width="2" position="0 0.4 0"></a-text>
+                <a-animation attribute="rotation" to="0 360 0" dur="9000" repeat="indefinite" easing="linear"></a-animation>
+            </a-entity>
+
+            <!-- Salad -->
+            <a-entity position="-1.5 0.5 -1" class="ar-item" data-id="3">
+                <a-cylinder color="#90EE90" radius="0.18" height="0.1" position="0 0 0"></a-cylinder>
+                <a-sphere color="#228B22" radius="0.05" position="0.08 0.08 0.08"></a-sphere>
+                <a-sphere color="#FF6347" radius="0.04" position="-0.08 0.08 -0.05"></a-sphere>
+                <a-sphere color="#FFA500" radius="0.04" position="0.05 0.08 -0.08"></a-sphere>
+                <a-text value="🥗 Salad\n$9.99" align="center" color="white" width="2" position="0 0.4 0"></a-text>
+                <a-animation attribute="rotation" to="0 360 0" dur="7000" repeat="indefinite" easing="linear"></a-animation>
+            </a-entity>
+
+            <!-- Steak -->
+            <a-entity position="0 0.5 -1" class="ar-item" data-id="4">
+                <a-box color="#8B4513" width="0.35" height="0.08" depth="0.25" position="0 0 0"></a-box>
+                <a-box color="#A0522D" width="0.33" height="0.06" depth="0.23" position="0 0.01 0"></a-box>
+                <a-text value="🥩 Steak\n$28.99" align="center" color="white" width="2" position="0 0.4 0"></a-text>
+                <a-animation attribute="rotation" to="0 360 0" dur="8500" repeat="indefinite" easing="linear"></a-animation>
+            </a-entity>
+
+            <!-- Dessert -->
+            <a-entity position="1.5 0.5 -1" class="ar-item" data-id="5">
+                <a-cylinder color="#D2691E" radius="0.15" height="0.12" position="0 0 0"></a-cylinder>
+                <a-cylinder color="#8B4513" radius="0.14" height="0.08" position="0 0.1 0"></a-cylinder>
+                <a-torus color="#FFB6C1" radius="0.12" radius-tubular="0.02" position="0 0.16 0"></a-torus>
+                <a-text value="🍰 Cake\n$7.99" align="center" color="white" width="2" position="0 0.4 0"></a-text>
+                <a-animation attribute="rotation" to="0 360 0" dur="7500" repeat="indefinite" easing="linear"></a-animation>
+            </a-entity>
+        </a-entity>
+    </a-scene>
+
+    <script>
+        // Menu Data
+        const menuData = [
+            { id: 0, emoji: '🍔', name: 'Classic Burger', price: 12.99, desc: 'Angus beef patty' },
+            { id: 1, emoji: '🍕', name: 'Margherita Pizza', price: 15.99, desc: 'Fresh mozzarella' },
+            { id: 2, emoji: '🍝', name: 'Pasta Carbonara', price: 14.50, desc: 'Creamy sauce' },
+            { id: 3, emoji: '🥗', name: 'Caesar Salad', price: 9.99, desc: 'Fresh & crispy' },
+            { id: 4, emoji: '🥩', name: 'Ribeye Steak', price: 28.99, desc: '12oz prime cut' },
+            { id: 5, emoji: '🍰', name: 'Chocolate Cake', price: 7.99, desc: 'Rich chocolate' }
+        ];
+
+        let cart = [];
+
+        // Initialize Menu
+        function initMenu() {
+            const container = document.getElementById('menuItems');
+            menuData.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'menu-item';
+                div.innerHTML = `
+                    <div class="item-emoji">${item.emoji}</div>
+                    <div class="item-name">${item.name}</div>
+                    <div class="item-price">$${item.price}</div>
+                `;
+                div.onclick = () => addToCart(item);
+                container.appendChild(div);
+            });
+        }
+
+        // Add to Cart
+        function addToCart(item) {
+            cart.push(item);
+            updateCartCount();
+            showNotification(`${item.emoji} ${item.name} added!`);
+        }
+
+        // Update Cart Count
+        function updateCartCount() {
+            document.getElementById('cartCount').textContent = cart.length;
+        }
+
+        // Show Cart
+        function showCart() {
+            if (cart.length === 0) {
+                showNotification('Cart is empty!');
+                return;
+            }
+
+            const orderList = document.getElementById('orderList');
+            orderList.innerHTML = cart.map(item => `
+                <div class="order-item">
+                    <span>${item.emoji} ${item.name}</span>
+                    <span>$${item.price}</span>
+                </div>
+            `).join('');
+
+            const total = cart.reduce((sum, item) => sum + item.price, 0).toFixed(2);
+            document.getElementById('orderTotal').textContent = `Total: $${total}`;
+            document.getElementById('orderModal').classList.add('active');
+        }
+
+        // Close Modal
+        function closeModal() {
+            document.getElementById('orderModal').classList.remove('active');
+        }
+
+        // Send Order via WhatsApp
+        function sendOrder() {
+            const total = cart.reduce((sum, item) => sum + item.price, 0).toFixed(2);
+            const orderText = cart.map(item => `${item.emoji} ${item.name} - $${item.price}`).join('%0A');
+            
+            // ⚠️ CHANGE THIS TO YOUR WHATSAPP NUMBER
+            const phone = '923001234567'; // Format: countrycode + number (no + or spaces)
+            const message = `🍽️ *Urban Bistro Order*%0A%0A${orderText}%0A%0A💰 *Total: $${total}*`;
+            
+            window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+            cart = [];
+            updateCartCount();
+            closeModal();
+        }
+
+        // Show Notification
+        function showNotification(msg) {
+            const notif = document.createElement('div');
+            notif.style.cssText = `
+                position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+                background: rgba(0,0,0,0.9); color: white; padding: 15px 25px;
+                border-radius: 25px; z-index: 300; font-weight: 600;
+            `;
+            notif.textContent = msg;
+            document.body.appendChild(notif);
+            setTimeout(() => {
+                notif.style.opacity = '0';
+                notif.style.transition = 'opacity 0.5s';
+                setTimeout(() => notif.remove(), 500);
+            }, 2000);
+        }
+
+        // Hide loading screen when AR is ready
+        window.addEventListener('load', () => {
+            initMenu();
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+            }, 2000);
+        });
+
+        // Make 3D items clickable
+        document.addEventListener('click', (e) => {
+            const scene = document.querySelector('a-scene');
+            if (!scene) return;
+            
+            const camera = scene.camera;
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+            
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            
+            const items = document.querySelectorAll('.ar-item');
+            items.forEach(item => {
+                const obj = item.object3D;
+                const intersects = raycaster.intersectObject(obj, true);
+                if (intersects.length > 0) {
+                    const id = parseInt(item.getAttribute('data-id'));
+                    addToCart(menuData[id]);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
